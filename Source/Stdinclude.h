@@ -12,6 +12,7 @@
 #include "Configuration/Macros.h"
 
 // Includes for standard libraries.
+#include <unordered_map>
 #include <cstdint>
 #include <cstdlib>
 #include <cstdarg>

@@ -18,6 +18,15 @@ namespace Bootstrap
     constexpr const char *Currentarchitecture = sizeof(void *) == sizeof(uint64_t) ? "64" : "32";
     constexpr const char *Complimentarchitecture = sizeof(void *) == sizeof(uint64_t) ? "32" : "64";
 
+    // The names of supported bootstrap modules.
+    std::unordered_map<Processtype, std::string> Modulenames =
+    {
+        { Processtype::ELF32_NATIVE, "Nativebootstrap32.so" },
+        { Processtype::ELF64_NATIVE, "Nativebootstrap64.so" },
+        { Processtype::PE32_NATIVE, "Nativebootstrap32.dll" },
+        { Processtype::PE64_NATIVE, "Nativebootstrap64.dll" }
+    };
+
     #if defined (_WIN32)
     #include <windows.h>
 
@@ -28,9 +37,13 @@ namespace Bootstrap
     }
 
     #else
+    #include <sys/ptrace.h>
+    #include <sys/user.h>
     #include <signal.h>
     #include <unistd.h>
+    #include <dlfcn.h>
     #include <spawn.h>
+    #include <wait.h>
 
     // Create a new process, either the target or another bootstrap.
     void *Spawnprocess(const char *Targetpath, Processtype Targettype)
@@ -104,20 +117,12 @@ namespace Bootstrap
             // Check if the other spawner ran.
             if(ProcessID) goto LABEL_INJECT;
 
-            // Create a copy of the binary.
-            char Buffer[8192]; size_t Count = 0;
-            std::FILE *Srchandle = std::fopen(Targetpath, "rb");
-            std::FILE *Dsthandle = std::fopen(va("%s_ayria", Targetpath).c_str(), "wb");
-            while (Count = std::fread(Buffer, 1, 8192, Srchandle)) std::fwrite(Buffer, 1, Count, Dsthandle);
-            std::fclose(Srchandle); std::fclose(Dsthandle);
+            // Create a copy of the binary and hack.
+            system(va("sudo cp %s %s_ayria", Targetpath, Targetpath).c_str());
 
             // Modify the copied binary to add an import.
-            /*
-                TODO(Convery):
-                Open the copied ELF file and modify the dynamic segment
-                to add an import to our SO that suspends the host
-                process when it's loaded.
-            */
+            // TODO(Convery): Maybe implement this directly.
+            system(va("sudo patchelf --add-needed libLinuxhack%s.so %s_ayria", Currentarchitecture, Targetpath).c_str());
 
             // Recreate the commandline.
             char **Arguments = new char *[Savedargc - 1]();
@@ -150,15 +155,152 @@ namespace Bootstrap
         {
             LABEL_INJECT:;
 
-            /*
-                TODO(Convery):
-                Use ptrace to inject the bootstrap module.
-                We could just replace the 'hack' SO with
-                the bootstrap module but let's try to
-                mimic windows for now.
+            // Attach ptrace to the game.
+            if(ptrace(PTRACE_ATTACH, ProcessID, NULL, NULL) == -1)
+            {
+                Infoprint("Could not attach to the game process.");
+                Infoprint("Exiting.");
+                exit(1);
+            }
 
-                https://github.com/gaffe23/linux-inject
-            */
+            // Wait for the process to be ready.
+            int Status;
+            if(waitpid(ProcessID, &Status, WUNTRACED) != ProcessID)
+            {
+                Infoprint("Could not attach to the game process.");
+                Infoprint("Exiting.");
+                exit(1);
+            }
+
+            // Environment information.
+            {
+                char *Fullpath = realpath(Modulenames[Targettype].c_str(), NULL);
+                size_t Pathlength = std::strlen(Fullpath) + 1;
+
+                // Get the libc location.
+                auto Getlibc = [](pid_t ProcessID) -> unsigned long
+                {
+                    unsigned long Libcaddress = 0; char Buffer[1024];
+                    std::FILE *Filehandle = std::fopen(va("/proc/%d/maps", ProcessID).c_str(), "r");
+                    if(!Filehandle)
+                    {
+                        Infoprint("Could not read process memory mapping.");
+                        Infoprint("Exiting.");
+                        exit(1);
+                    }
+                    while(std::fgets(Buffer, 1024, Filehandle))
+                    {
+                        std::scanf("%lx-%*lx %*s %*s %*s %*d", &Libcaddress);
+                        if(std::strstr(Buffer, "libc-")) break;
+                    }
+                    std::fclose(Filehandle);
+
+                    return Libcaddress;
+                };
+
+                // Local libc information.
+                size_t Locallibc = Getlibc(getpid());
+                void *Dlopenaddress = dlsym(dlopen("libc.so.6", RTLD_LAZY), "__libc_dlopen_mode");
+                void *Mallocaddress = dlsym(dlopen("libc.so.6", RTLD_LAZY), "malloc");
+                void *Freeaddress = dlsym(dlopen("libc.so.6", RTLD_LAZY), "free");
+
+                // Shared libc information.
+                size_t Dlopenoffset = size_t(Dlopenaddress) - Locallibc;
+                size_t Mallocoffset = size_t(Mallocaddress) - Locallibc;
+                size_t Freeoffset = size_t(Freeaddress) - Locallibc;
+
+                // Remote libc information.
+                size_t Remotelibc = Getlibc(ProcessID);
+                size_t Remotedlopen = Remotelibc + Dlopenoffset;
+                size_t Remotemalloc = Remotelibc + Mallocoffset;
+                size_t Remotefree = Remotelibc + Freeoffset;
+
+                // Save the state of the process.
+                user_regs_struct Oldstate{};
+                if(ptrace(PTRACE_GETREGS, ProcessID, NULL, &Oldstate) == -1)
+                {
+                    Infoprint("Could not get the state of the game.");
+                    Infoprint("Exiting.");
+                    exit(1);
+                }
+
+                // Find a executable memory region in the game.
+                auto Getcodepage = [](pid_t ProcessID) -> unsigned long
+                {
+                    unsigned long Address = 0; char Buffer[1024]; char Permissions[5]{}; char Device[6]{};
+                    std::FILE *Filehandle = std::fopen(va("/proc/%d/maps", ProcessID).c_str(), "r");
+                    if(!Filehandle)
+                    {
+                        Infoprint("Could not read process memory mapping.");
+                        Infoprint("Exiting.");
+                        exit(1);
+                    }
+                    while(std::fgets(Buffer, 1024, Filehandle))
+                    {
+                        std::scanf("%lx-%*lx %s %*s %s %*d", &Address, Permissions, Device);
+                        if(Permissions[2] == 'x') break;
+                    }
+                    std::fclose(Filehandle);
+
+                    return Address;
+                };
+
+                // Set the new register state per architecture, no ARM yet.
+                auto Entrypoint = Getcodepage(ProcessID) + sizeof(long);
+                user_regs_struct Newstate = Oldstate;
+                #if defined (ENVIRONMENT64)
+                Newstate.rip = Entrypoint + 2;
+                Newstate.rdi = Remotemalloc;
+                Newstate.rdx = Remotedlopen;
+                Newstate.rsi = Remotefree;
+                Newstate.rcx = Pathlength;
+                #else
+                Newstate.eip = Entrypoint;
+                Newstate.ebx = Remotemalloc;
+                Newstate.edi = Remotedlopen;
+                Newstate.esi = Remotefree;
+                Newstate.ecx = Pathlength;
+                #endif
+                if(ptrace(PTRACE_SETREGS, ProcessID, NULL, &Newstate) == -1)
+                {
+                    Infoprint("Could not set the state of the game.");
+                    Infoprint("Exiting.");
+                    exit(1);
+                }
+
+                // The loaders by architecture.
+                #if defined (ENVIRONMENT64)
+                auto Loadercode = []() [[noreturn]] -> void {};
+                #else
+                auto Loadercode = []() [[noreturn]] -> void
+                {
+                    // AT&T makes me a sad hedgehog.
+                    asm
+                    (
+                        "dec %esi \n"           // Maybe optional.
+                        "push %ecx \n"          // Push the size to allocate.
+                        "call *%ebx \n"         // Call malloc.
+                        "mov %eax, %ebx \n"     // Save the address to ebx.
+                        "int $3 \n"             // Notify ptrace to write to the buffer.
+
+                        "push $1 \n"            // Push RTLD_LAZY.
+                        "push %ebx \n"          // Push the buffer address.
+                        "call *%edi \n"         // Call dlopen.
+                        "int $3 \n"             // Notify ptrace to check injection.
+
+                        "push %ebx \n"          // Push the buffer to free.
+                        "call *%esi \n"         // Call free.
+                        "int $3"                // Notify ptrace that we are done.
+                    );
+                };
+                #endif
+
+                // Backup the codesegment and write our new one.
+                auto Oldcode = std::make_unique<uint8_t []>(sizeof(Loadercode));
+
+
+
+            }
         }
 
         // Resume the process.
