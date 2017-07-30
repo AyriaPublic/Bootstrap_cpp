@@ -11,6 +11,9 @@
 
 namespace Bootstrap
 {
+    // Saved copy of the process input for nix.
+    extern int Savedargc; extern char **Savedargv;
+
     // The type of process we'll inject into.
     enum class Processtype : uint8_t
     {

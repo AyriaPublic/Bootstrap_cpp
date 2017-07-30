@@ -11,6 +11,9 @@
 // Standard entrypoint for ASCII / UTF8 systems.
 int main(int argc, char **argv)
 {
+    // Save the input for the bootstrapper.
+    Bootstrap::Savedargc = argc; Bootstrap::Savedargv = argv;
+
     // Verify that we have received an app to start.
     if(argc < 2)
     {
