@@ -141,6 +141,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Bootstrap\Bootstrap.h" />
     <ClInclude Include="Source\Configuration\Defines.h" />
     <ClInclude Include="Source\Configuration\Macros.h" />
     <ClInclude Include="Source\Configuration\Warnings.h" />
@@ -156,6 +157,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Appmain.cpp" />
+    <ClCompile Include="Source\Bootstrap\Processtype.cpp" />
+    <ClCompile Include="Source\Bootstrap\Spawner.cpp" />
     <ClCompile Include="Source\Utility\Binary\Hooking.cpp" />
     <ClCompile Include="Source\Utility\Binary\Memprotect.cpp" />
     <ClCompile Include="Source\Utility\Binary\Patternscan.cpp" />

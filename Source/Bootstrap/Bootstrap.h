@@ -11,9 +11,6 @@
 
 namespace Bootstrap
 {
-    // Saved copy of the process input for nix.
-    extern int Savedargc; extern char **Savedargv;
-
     // The type of process we'll inject into.
     enum class Processtype : uint8_t
     {
@@ -25,12 +22,20 @@ namespace Bootstrap
         ELF64_NATIVE = 5,
     };
 
+    // Information about the game.
+    struct Game_t
+    {
+        std::string Bootstrapperversion;
+        std::string Targetdirectory;
+        std::string Targetbinary;
+        std::string Startupargs;
+        Processtype Targettype;
+        bool Reserved;
+    };
+
     // Analyze a binary to get process information.
     Processtype Analyzetarget(const char *Targetpath);
 
     // Create a new process, either the target or another bootstrap.
-    void *Spawnprocess(const char *Targetpath, Processtype Targettype);
-
-    // Inject a specified module into the spawned process.
-    bool Injectmodule(void *Targethandle, Processtype Targettype);
+    bool Spawnprocess(Game_t &Target);
 }
