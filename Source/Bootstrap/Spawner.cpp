@@ -46,7 +46,7 @@ namespace Bootstrap
             std::string Commandline = Target.Bootstrapperversion + " " + Target.Targetdirectory + " " + Target.Targetbinary + " " + Target.Startupargs;
 
             // Spawn the bootstrapper.
-            STARTUPINFO Unused1; PROCESS_INFORMATION Unused2;
+            STARTUPINFO Unused1{}; PROCESS_INFORMATION Unused2{};
             return TRUE == CreateProcessA(NULL, (char *)Commandline.c_str(), NULL, NULL, NULL, NULL, NULL, NULL, &Unused1, &Unused2);
         }
 
@@ -56,7 +56,7 @@ namespace Bootstrap
             std::string Commandline = Target.Targetdirectory + "/" + Target.Targetbinary + " " + Target.Startupargs;
 
             // Spawn the game.
-            STARTUPINFO Startupinfo; PROCESS_INFORMATION Processinfo;
+            STARTUPINFO Startupinfo{}; PROCESS_INFORMATION Processinfo{};
             if (FALSE == CreateProcessA(NULL, (char *)Commandline.c_str(), NULL, NULL, CREATE_SUSPENDED, NULL, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
                 return false;
 

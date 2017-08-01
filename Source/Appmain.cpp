@@ -8,6 +8,9 @@
 
 #include "Stdinclude.h"
 
+// Delete the last sessions log on startup.
+namespace { struct Deletelog { Deletelog() { Clearlog(); } }; static Deletelog Deleted{}; }
+
 // Standard entrypoint for ASCII / UTF8 systems.
 int main(int argc, char **argv)
 {
