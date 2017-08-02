@@ -10,7 +10,8 @@
 #include "../../Stdinclude.h"
 
 #if !defined (_WIN32)
-extern char _etext, _end, __executable_start;
+#include <dlfcn.h>
+extern char _etext, _end;
 #endif
 
 namespace Internal
@@ -49,17 +50,14 @@ namespace Internal
                 NOTE(Convery):
                 This code is for linux, OSX may not support it.
                 If it fails under OSX, try this:
-
                 #include <mach-o/getsect.h>
-
-                Coderange.first = size_t(???);
+                Coderange.first = *(size_t *)dlopen(NULL, RTLD_LAZY);
                 Coderange.second = size_t(get_etext());
-
                 Datarange.first = size_t(get_etext());
                 Datarange.second = size_t(get_end());
             */
 
-            Coderange.first = size_t(&__executable_start);
+            Coderange.first = *(size_t *)dlopen(NULL, RTLD_LAZY);
             Coderange.second = size_t(&_etext);
             Datarange.first = size_t(&_etext);
             Datarange.second = size_t(&_end);
