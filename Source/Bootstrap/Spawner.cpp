@@ -57,7 +57,7 @@ namespace Bootstrap
 
             // Spawn the game.
             STARTUPINFO Startupinfo{}; PROCESS_INFORMATION Processinfo{};
-            if (FALSE == CreateProcessA((Target.Targetdirectory + "/" + Target.Targetbinary).c_str(), (char *)Commandline.c_str(), NULL, NULL, CREATE_SUSPENDED, NULL, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
+            if (FALSE == CreateProcessA((Target.Targetdirectory + "/" + Target.Targetbinary).c_str(), (char *)Commandline.c_str(), NULL, NULL, NULL, CREATE_SUSPENDED, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
                 return false;
 
             // Extract the handles for the new process.
