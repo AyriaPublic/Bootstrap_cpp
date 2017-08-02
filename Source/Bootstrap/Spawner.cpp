@@ -39,25 +39,25 @@ namespace Bootstrap
             (Target.Targettype == Processtype::PE32_NATIVE && sizeof(void *) == sizeof(uint64_t)))
         {
             // Replace the current architecture with its compliment.
-            Target.Bootstrapperversion.replace(Target.Bootstrapperversion.find_last_of(Currentarchitecture),
+            Target.Bootstrapperversion.replace(Target.Bootstrapperversion.find_last_of(Currentarchitecture) - 1,
                 2, Complimentarchitecture);
 
             // Create a commandline.
-            std::string Commandline = Target.Bootstrapperversion + " " + Target.Targetdirectory + " " + Target.Targetbinary + " " + Target.Startupargs;
+            std::string Commandline = Target.Bootstrapperversion + " \"" + Target.Targetdirectory + "\" \"" + Target.Targetbinary + "\" " + Target.Startupargs;
 
             // Spawn the bootstrapper.
             STARTUPINFO Unused1{}; PROCESS_INFORMATION Unused2{};
-            return TRUE == CreateProcessA(NULL, (char *)Commandline.c_str(), NULL, NULL, NULL, NULL, NULL, NULL, &Unused1, &Unused2);
+            return TRUE == CreateProcessA(Target.Bootstrapperversion.c_str(), (char *)Commandline.c_str(), NULL, NULL, NULL, NULL, NULL, NULL, &Unused1, &Unused2);
         }
 
         // Spawn the game we are interested in.
         {
             // Create a commandline.
-            std::string Commandline = Target.Targetdirectory + "/" + Target.Targetbinary + " " + Target.Startupargs;
+            std::string Commandline = "\"" + Target.Targetdirectory + "\" \"" + Target.Targetbinary + "\" " + Target.Startupargs;
 
             // Spawn the game.
             STARTUPINFO Startupinfo{}; PROCESS_INFORMATION Processinfo{};
-            if (FALSE == CreateProcessA(NULL, (char *)Commandline.c_str(), NULL, NULL, CREATE_SUSPENDED, NULL, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
+            if (FALSE == CreateProcessA((Target.Targetdirectory + "/" + Target.Targetbinary).c_str(), (char *)Commandline.c_str(), NULL, NULL, CREATE_SUSPENDED, NULL, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
                 return false;
 
             // Extract the handles for the new process.
