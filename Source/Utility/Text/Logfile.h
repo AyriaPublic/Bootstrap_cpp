@@ -39,11 +39,9 @@ inline void Logprint(std::string Message)
     }
     Logfileinternal::Threadguard.unlock();
 
-    // Duplicate the output to stderr if debugging.
-    #if !defined (NDEBUG)
-    std::fputs(Message.c_str(), stderr);
-    std::fputs("\n", stderr);
-    #endif
+    // Duplicate the output to stdout.
+    std::fputs(Message.c_str(), stdout);
+    std::fputs("\n", stdout);
 }
 
 // Write a prefixed string.

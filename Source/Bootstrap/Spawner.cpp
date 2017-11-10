@@ -38,6 +38,9 @@ namespace Bootstrap
         if ((Target.Targettype == Processtype::PE64_NATIVE && sizeof(void *) != sizeof(uint64_t)) ||
             (Target.Targettype == Processtype::PE32_NATIVE && sizeof(void *) == sizeof(uint64_t)))
         {
+            // Notify the user.
+            Infoprint(va("Bootstrap%s does not support %s-bit games. Launching Bootstrap%s.", Currentarchitecture, Complimentarchitecture, Complimentarchitecture));
+
             // Replace the current architecture with its compliment.
             Target.Bootstrapperversion.replace(Target.Bootstrapperversion.find_last_of(Currentarchitecture) - 1,
                 2, Complimentarchitecture);
@@ -52,13 +55,16 @@ namespace Bootstrap
 
         // Spawn the game we are interested in.
         {
-            // Create a commandline.
+            // Create a command-line.
             std::string Commandline = "\"" + Target.Targetdirectory + "\" \"" + Target.Targetbinary + "\" " + Target.Startupargs;
 
             // Spawn the game.
             STARTUPINFO Startupinfo{}; PROCESS_INFORMATION Processinfo{};
-            if (FALSE == CreateProcessA((Target.Targetdirectory + "/" + Target.Targetbinary).c_str(), (char *)Commandline.c_str(), NULL, NULL, NULL, CREATE_SUSPENDED, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
+            if (FALSE == CreateProcessA((Target.Targetdirectory + "/" + Target.Targetbinary).c_str(), (char *)Commandline.c_str(), NULL, NULL, NULL, CREATE_SUSPENDED | DETACHED_PROCESS, NULL, Target.Targetdirectory.c_str(), &Startupinfo, &Processinfo))
                 return false;
+
+            // Notify the user.
+            Infoprint(va("Started: \"%s\"", (Target.Targetdirectory + "/" + Target.Targetbinary).c_str()));
 
             // Extract the handles for the new process.
             Processhandle = Processinfo.hProcess;
@@ -75,6 +81,9 @@ namespace Bootstrap
 
             auto Libraryaddress = GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
             auto Remotestring = VirtualAllocEx(Processhandle, NULL, Fullpath.size() + 1, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
+            // Notify the user.
+            Infoprint(va("Injecting \"%s\" into \"%s\"", Modulenames[Target.Targettype].c_str(), Target.Targetbinary.c_str()));
 
             WriteProcessMemory(Processhandle, Remotestring, Fullpath.c_str(), Fullpath.size() + 1, NULL);
             auto Result = CreateRemoteThread(Processhandle, NULL, NULL, LPTHREAD_START_ROUTINE(Libraryaddress), Remotestring, NULL, NULL);

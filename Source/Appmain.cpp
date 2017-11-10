@@ -46,6 +46,21 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Notify the user.
+    std::string Targetinfo = "Bootstrap target:\n";
+    Targetinfo += va("Directory: \"%s\"\n", Target.Targetdirectory.c_str());
+    Targetinfo += va("Binary: \"%s\"\n", Target.Targetbinary.c_str());
+    Targetinfo += va("Arguments: \"%s\"\n", Target.Startupargs.c_str());
+    switch (Target.Targettype)
+    {
+        case Bootstrap::Processtype::ELF32_NATIVE: Targetinfo += va("Processtype: \"%s\"", "ELF32"); break;
+        case Bootstrap::Processtype::ELF64_NATIVE: Targetinfo += va("Processtype: \"%s\"", "ELF64"); break;
+        case Bootstrap::Processtype::PE32_NATIVE: Targetinfo += va("Processtype: \"%s\"", "PE32"); break;
+        case Bootstrap::Processtype::PE64_NATIVE: Targetinfo += va("Processtype: \"%s\"", "PE64"); break;
+        case Bootstrap::Processtype::PE_MANAGED: Targetinfo += va("Processtype: \"%s\"", "Managed"); break;
+    };
+    Infoprint(Targetinfo.c_str());
+
     // Spawn the gameprocess.
     if (!Bootstrap::Spawnprocess(Target))
     {
