@@ -1,15 +1,12 @@
 /*
-    Initial author: Convery (tcn@ayria.se)
-    Started: 29-07-2017
+    Initial author: Convery (tcn@hedgehogscience.com)
+    Started: 08-01-2018
     License: MIT
     Notes:
-        Module entrypoint.
+        Provides the entrypoint for Windows and Nix.
 */
 
-#include "Stdinclude.h"
-
-// Delete the last sessions log on startup.
-namespace { struct Deletelog { Deletelog() { Clearlog(); } }; static Deletelog Deleted{}; }
+#include "Stdinclude.hpp"
 
 // Standard entrypoint for ASCII / UTF8 systems.
 int main(int argc, char **argv)
@@ -21,10 +18,13 @@ int main(int argc, char **argv)
     {
         // Log to the file and to stdout.
         Infoprint("Failed to start, missing parameters.");
-        printf("Usage: Bootstrap[Architecture].exe [Gamedirectory] [Gamename] <Startuparguments>\n");
-        printf("Example: Bootstrap32.exe \"C:/Steam/Tetris3\" \"win32/ship/tetris_32.exe\" -no_console -developer=1 -otherargument\n");
+        printf("Usage: Bootstrap[Architecture] [Gamedirectory] [Gamename] <Startuparguments>\n");
+        printf("Example: Bootstrap32 \"C:/Steam/Tetris3\" \"win32/ship/tetris_32.exe\" -no_console -developer=1 -otherargument\n");
         return 1;
     }
+
+    // Clear the previous sessions logfile.
+    Clearlog();
 
     // Parse the input about our target.
     Target.Bootstrapperversion = argv[0];

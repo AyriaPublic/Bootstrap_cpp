@@ -1,5 +1,5 @@
 /*
-    Initial author: Convery (tcn@ayria.se)
+    Initial author: Convery (tcn@hedgehogscience.com)
     Started: 30-07-2017
     License: MIT
     Notes:
@@ -7,7 +7,7 @@
 */
 
 #pragma once
-#include "../Stdinclude.h"
+#include "../Stdinclude.hpp"
 
 namespace Bootstrap
 {
